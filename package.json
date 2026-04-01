@@ -2,7 +2,9 @@
   "name": "faculty-management-backend",
   "version": "1.0.0",
   "scripts": {
-    "dev": "nodemon src/index.js",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "nodemon src/index.js",
+    "dev:frontend": "cd frontend && npm run dev",
     "start": "node src/index.js",
     "db:migrate": "npx prisma migrate dev",
     "db:seed": "node prisma/seed.js",
@@ -20,6 +22,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "nodemon": "^3.1.7",
     "prisma": "^5.20.0"
   }
