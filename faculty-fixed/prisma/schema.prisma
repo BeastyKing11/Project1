@@ -1,0 +1,169 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  VIEWER
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+}
+
+enum FieldType {
+  TEXT
+  NUMBER
+  DATE
+  SELECT
+  BOOLEAN
+  TEXTAREA
+}
+
+enum EntityType {
+  FACULTY
+  FAMILY
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(VIEWER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Faculty {
+  itsNumber     String         @id
+  firstName     String
+  lastName      String
+  firstNameAr   String?
+  lastNameAr    String?
+  email         String?
+  phone         String?
+  gender        Gender
+  dateOfBirth   DateTime?
+  maritalStatus MaritalStatus?
+  nationality   String?
+  department    String?
+  position      String?
+  hireDate      DateTime?
+  address       String?
+  notes         String?
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  familyMembers FamilyMember[]
+  categories    FacultyCategory[]
+  customValues  CustomFieldValue[]
+}
+
+model FamilyMember {
+  id           String    @id @default(uuid())
+  facultyId    String
+  faculty      Faculty   @relation(fields: [facultyId], references: [itsNumber], onDelete: Cascade)
+  relationship String
+  firstName    String
+  lastName     String
+  firstNameAr  String?
+  lastNameAr   String?
+  gender       Gender
+  dateOfBirth  DateTime?
+  phone        String?
+  email        String?
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  customValues CustomFieldValue[]
+}
+
+model Category {
+  id            String   @id @default(uuid())
+  name          String   @unique
+  description   String?
+  color         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  faculty       FacultyCategory[]
+  fieldMappings FieldCategoryMapping[]
+}
+
+model FacultyCategory {
+  id         String   @id @default(uuid())
+  facultyId  String
+  categoryId String
+  faculty    Faculty  @relation(fields: [facultyId], references: [itsNumber], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([facultyId, categoryId])
+}
+
+model CustomField {
+  id               String     @id @default(uuid())
+  name             String
+  label            String
+  labelAr          String?
+  fieldType        FieldType
+  entityType       EntityType
+  isRequired       Boolean    @default(false)
+  options          String?    // JSON array for SELECT type
+  sortOrder        Int        @default(0)
+  isActive         Boolean    @default(true)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  values           CustomFieldValue[]
+  categoryMappings FieldCategoryMapping[]
+
+  @@unique([name, entityType])
+}
+
+// FIX: CustomFieldValue must always belong to exactly one of facultyId OR familyMemberId,
+// never both and never neither. This constraint is enforced at the application layer
+// (see routes/faculty.js and routes/family.js). The two separate @@unique constraints
+// correctly prevent duplicate values per (customField, faculty) and per
+// (customField, familyMember) pairs respectively. PostgreSQL treats NULLs as distinct
+// in unique indexes, so a null familyMemberId does not conflict across faculty rows.
+model CustomFieldValue {
+  id             String        @id @default(uuid())
+  customFieldId  String
+  customField    CustomField   @relation(fields: [customFieldId], references: [id], onDelete: Cascade)
+  facultyId      String?
+  faculty        Faculty?      @relation(fields: [facultyId], references: [itsNumber], onDelete: Cascade)
+  familyMemberId String?
+  familyMember   FamilyMember? @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  value          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([customFieldId, facultyId])
+  @@unique([customFieldId, familyMemberId])
+}
+
+model FieldCategoryMapping {
+  id            String      @id @default(uuid())
+  customFieldId String
+  categoryId    String
+  customField   CustomField @relation(fields: [customFieldId], references: [id], onDelete: Cascade)
+  category      Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([customFieldId, categoryId])
+}
